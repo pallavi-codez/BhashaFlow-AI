@@ -103,3 +103,61 @@ class TestParseTransaction:
         result = parse_transaction("Bought shop supplies for 100 rupees expense", "en-IN")
         assert result.txn_type == TransactionType.EXPENSE
         assert result.amount == Decimal("100")
+
+
+class TestMultilingualParsing:
+    def test_hindi_credit(self):
+        result = parse_transaction("Ramesh ko 500 rupaye udhar likho", "hi-IN")
+        assert result.txn_type == TransactionType.CREDIT_SALE
+        assert result.amount == Decimal("500")
+        assert result.customer_name == "Ramesh"
+        assert not result.ambiguous
+
+    def test_hindi_devanagari_numerals_and_script(self):
+        result = parse_transaction("रमेश को ५०० रुपये उधार लिखो", "hi-IN")
+        assert result.txn_type == TransactionType.CREDIT_SALE
+        assert result.amount == Decimal("500")
+        assert result.customer_name == "रमेश"
+        assert not result.ambiguous
+
+    def test_hindi_payment(self):
+        result = parse_transaction("Ramesh ne 300 rupaye jama kiye", "hi-IN")
+        assert result.txn_type == TransactionType.PAYMENT
+        assert result.amount == Decimal("300")
+        assert result.customer_name == "Ramesh"
+        assert not result.ambiguous
+
+    def test_kannada_indic_numerals(self):
+        result = parse_transaction("Ramesh ge ೫೦೦ rupees udhar haaku", "kn-IN")
+        assert result.txn_type == TransactionType.CREDIT_SALE
+        assert result.amount == Decimal("500")
+        assert result.customer_name == "Ramesh"
+        assert not result.ambiguous
+
+    def test_tamil_credit(self):
+        result = parse_transaction("Ramesh ku 450 roobai kadan podu", "ta-IN")
+        assert result.txn_type == TransactionType.CREDIT_SALE
+        assert result.amount == Decimal("450")
+        assert result.customer_name == "Ramesh"
+        assert not result.ambiguous
+
+    def test_telugu_credit(self):
+        result = parse_transaction("Ramesh ki 600 rupayalu appu raayi", "te-IN")
+        assert result.txn_type == TransactionType.CREDIT_SALE
+        assert result.amount == Decimal("600")
+        assert result.customer_name == "Ramesh"
+        assert not result.ambiguous
+
+    def test_urdu_credit(self):
+        result = parse_transaction("رمیش کو 500 روپے ادھار لکھو", "ur-IN")
+        assert result.txn_type == TransactionType.CREDIT_SALE
+        assert result.amount == Decimal("500")
+        assert result.customer_name == "رمیش"
+        assert not result.ambiguous
+
+    def test_marathi_payment(self):
+        result = parse_transaction("Ramesh la 250 rupaye jama", "mr-IN")
+        assert result.txn_type == TransactionType.PAYMENT
+        assert result.amount == Decimal("250")
+        assert result.customer_name == "Ramesh"
+        assert not result.ambiguous

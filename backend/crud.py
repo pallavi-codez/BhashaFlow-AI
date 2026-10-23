@@ -12,8 +12,8 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .models import Customer, Shop, Transaction, TransactionSource, TransactionType
-from .schemas import CustomerCreate, TransactionCreate
+from .models import Customer, Expense, Shop, Transaction, TransactionSource, TransactionType
+from .schemas import CustomerCreate, ExpenseCreate, TransactionCreate
 
 
 # ── Password hashing ──────────────────────────────────────────────────────────
@@ -253,13 +253,35 @@ def _sum_today(db: Session, shop_id: int, txn_type: TransactionType, target_date
     return Decimal(str(result or 0))
 
 
+def _sum_expenses_today(db: Session, shop_id: int, target_date: date) -> Decimal:
+    start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
+    end   = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, 999999)
+    txn_expenses = db.scalar(
+        select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.shop_id   == shop_id,
+            Transaction.txn_type  == TransactionType.EXPENSE,
+            Transaction.confirmed == True,  # noqa: E712
+            Transaction.created_at >= start,
+            Transaction.created_at <= end,
+        )
+    ) or 0
+    direct_expenses = db.scalar(
+        select(func.coalesce(func.sum(Expense.amount), 0)).where(
+            Expense.shop_id == shop_id,
+            Expense.created_at >= start,
+            Expense.created_at <= end,
+        )
+    ) or 0
+    return Decimal(str(txn_expenses)) + Decimal(str(direct_expenses))
+
+
 def get_dashboard_stats(db: Session, shop_id: int, target_date: Optional[date] = None) -> dict:
     today = target_date or date.today()
 
     credit_today  = _sum_today(db, shop_id, TransactionType.CREDIT_SALE, today)
     cash_today    = _sum_today(db, shop_id, TransactionType.CASH_SALE,   today)
     payment_today = _sum_today(db, shop_id, TransactionType.PAYMENT,     today)
-    expense_today = _sum_today(db, shop_id, TransactionType.EXPENSE,     today)
+    expense_today = _sum_expenses_today(db, shop_id, today)
 
     # Today's cash received = cash sales + debt payments received today
     cash_received = cash_today + payment_today
@@ -296,3 +318,44 @@ def get_dashboard_stats(db: Session, shop_id: int, target_date: Optional[date] =
         "total_customers":          customer_count,
         "total_transactions_today": txn_count,
     }
+
+
+# ── Expense CRUD ──────────────────────────────────────────────────────────────
+
+def create_expense(db: Session, shop_id: int, data: ExpenseCreate) -> Expense:
+    expense = Expense(
+        shop_id=shop_id,
+        amount=data.amount,
+        category=data.category or "supplies",
+        note=data.note,
+    )
+    db.add(expense)
+    db.commit()
+    db.refresh(expense)
+    return expense
+
+
+def list_expenses(
+    db: Session,
+    shop_id: int,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    limit: int = 50,
+) -> list[Expense]:
+    q = select(Expense).where(Expense.shop_id == shop_id)
+    if from_date:
+        q = q.where(Expense.created_at >= datetime(from_date.year, from_date.month, from_date.day))
+    if to_date:
+        next_day = to_date + timedelta(days=1)
+        q = q.where(Expense.created_at < datetime(next_day.year, next_day.month, next_day.day))
+    q = q.order_by(Expense.created_at.desc()).limit(limit)
+    return list(db.scalars(q).all())
+
+
+def delete_expense(db: Session, shop_id: int, expense_id: int) -> bool:
+    expense = db.scalars(select(Expense).where(Expense.id == expense_id, Expense.shop_id == shop_id)).first()
+    if not expense:
+        return False
+    db.delete(expense)
+    db.commit()
+    return True

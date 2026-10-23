@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import init_db
-from .routers import auth, customers, dashboard, stt, transactions, tts
+from .routers import auth, customers, dashboard, expenses, languages, stt, transactions, tts
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +48,8 @@ app.include_router(transactions.router)
 app.include_router(dashboard.router)
 app.include_router(stt.router)
 app.include_router(tts.router)
+app.include_router(expenses.router)
+app.include_router(languages.router)
 
 
 @app.get("/health")

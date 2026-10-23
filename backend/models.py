@@ -53,6 +53,7 @@ class Shop(Base):
 
     customers:    Mapped[list["Customer"]]    = relationship(back_populates="shop", cascade="all, delete-orphan")
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="shop", cascade="all, delete-orphan")
+    expenses:     Mapped[list["Expense"]]     = relationship(back_populates="shop", cascade="all, delete-orphan")
 
 
 class Customer(Base):
@@ -94,3 +95,19 @@ class Transaction(Base):
 
     shop:     Mapped["Shop"]          = relationship(back_populates="transactions")
     customer: Mapped["Customer | None"] = relationship(back_populates="transactions")
+
+
+class Expense(Base):
+    """
+    Shop expenses (rent, supplies, utilities, transport, tea/snacks, misc).
+    """
+    __tablename__ = "expenses"
+
+    id:         Mapped[int]      = mapped_column(Integer, primary_key=True, index=True)
+    shop_id:    Mapped[int]      = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
+    amount:     Mapped[Decimal]  = mapped_column(Numeric(12, 2), nullable=False)
+    category:   Mapped[str]      = mapped_column(String(100), default="supplies")
+    note:       Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    shop: Mapped["Shop"] = relationship(back_populates="expenses")

@@ -151,3 +151,22 @@ class ParsedTransaction(BaseModel):
     confidence:    float                     = 0.0   # 0-1
     ambiguous:     bool                      = False
     ambiguity_reason: Optional[str]          = None
+
+
+# ── Expense ───────────────────────────────────────────────────────────────────
+
+class ExpenseCreate(BaseModel):
+    amount:   Decimal       = Field(..., gt=0, decimal_places=2)
+    category: str           = Field("supplies", max_length=100)
+    note:     Optional[str] = None
+
+
+class ExpenseOut(BaseModel):
+    id:         int
+    shop_id:    int
+    amount:     Decimal
+    category:   str
+    note:       Optional[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
