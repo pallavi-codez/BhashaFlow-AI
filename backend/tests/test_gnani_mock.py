@@ -21,9 +21,10 @@ class TestGnaniSTT:
                 "transcript": "Ramesh ge 500 rupees udhar haaku",
             },
         )
-        # Need a valid GNANI_API_KEY to get past the check in the service
         import os
         os.environ["GNANI_API_KEY"] = "test-key"
+        from backend.config import get_settings
+        get_settings.cache_clear()
 
         audio_bytes = b"\x52\x49\x46\x46" + b"\x00" * 40  # minimal fake WAV
         response = auth_client.post(
@@ -59,6 +60,8 @@ class TestGnaniSTT:
         respx_mock.post("https://api.vachana.ai/stt/v3").respond(500, text="Server Error")
         import os
         os.environ["GNANI_API_KEY"] = "test-key"
+        from backend.config import get_settings
+        get_settings.cache_clear()
 
         audio_bytes = b"\x52\x49\x46\x46" + b"\x00" * 40
         response = auth_client.post(

@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .models import TransactionSource, TransactionType
 
@@ -43,8 +43,7 @@ class ShopOut(BaseModel):
     is_demo:    bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── Customer ──────────────────────────────────────────────────────────────────
@@ -63,8 +62,7 @@ class CustomerOut(BaseModel):
     outstanding_balance: Decimal = Decimal("0")
     created_at:      datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── Transaction ───────────────────────────────────────────────────────────────
@@ -105,8 +103,7 @@ class TransactionOut(BaseModel):
     confirmed:       bool
     created_at:      datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ Balances are always computed from ledger entries, never from a cached column.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -18,17 +18,20 @@ from .schemas import CustomerCreate, TransactionCreate
 
 # ── Password hashing ──────────────────────────────────────────────────────────
 
-from passlib.context import CryptContext
-
-_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 
 def hash_password(plain: str) -> str:
-    return _pwd_ctx.hash(plain)
+    pwd_bytes = plain.encode("utf-8")[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_ctx.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8")[:72], hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 # ── Shop ──────────────────────────────────────────────────────────────────────
@@ -227,10 +230,8 @@ def list_transactions(
     if from_date:
         q = q.where(Transaction.created_at >= datetime(from_date.year, from_date.month, from_date.day))
     if to_date:
-        q = q.where(
-            Transaction.created_at < datetime(to_date.year, to_date.month, to_date.day + 1)
-            if to_date.day < 28 else datetime(to_date.year, to_date.month + 1, 1)
-        )
+        next_day = to_date + timedelta(days=1)
+        q = q.where(Transaction.created_at < datetime(next_day.year, next_day.month, next_day.day))
     q = q.order_by(Transaction.created_at.desc()).limit(limit).offset(offset)
     return list(db.scalars(q).all())
 

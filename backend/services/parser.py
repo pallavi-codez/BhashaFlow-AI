@@ -141,9 +141,12 @@ def detect_transaction_type(text: str) -> tuple[Optional[TransactionType], float
     if best_score == 0:
         return None, 0.0
 
-    # Confidence: 1.0 if unambiguous, lower if tied or low score
+    # Confidence: 1.0 if strong match, 0.9 if unique clear keyword, lower if tied or low score
     sorted_scores = sorted(scores.values(), reverse=True)
-    conf = 1.0 if (sorted_scores[0] > sorted_scores[1] and best_score >= 2) else 0.5
+    if sorted_scores[0] > sorted_scores[1]:
+        conf = 1.0 if best_score >= 2 else 0.9
+    else:
+        conf = 0.5
     return best_type, conf
 
 

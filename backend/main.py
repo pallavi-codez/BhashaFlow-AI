@@ -1,6 +1,7 @@
 """
 BhashaFlow AI — FastAPI application entry point.
 """
+from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
@@ -15,10 +16,20 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Initialising database …")
+    init_db()
+    logger.info("BhashaFlow AI backend ready.")
+    yield
+
+
 app = FastAPI(
     title="BhashaFlow AI API",
     description="Voice-Powered Udhar Ledger for Local Grocery Shops — Gnani AI Powered",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
@@ -29,13 +40,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ── Startup ───────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-def on_startup():
-    logger.info("Initialising database …")
-    init_db()
-    logger.info("BhashaFlow AI backend ready.")
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)

@@ -25,4 +25,5 @@ python-multipart==0.0.9
 pytest==8.3.3
 pytest-asyncio==0.24.0
 pytest-httpx==0.32.0
+respx==0.23.1
 httpx  # reused for test client
