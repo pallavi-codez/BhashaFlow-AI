@@ -47,7 +47,7 @@ export default function TransactionsView({ currentLang, onOpenVoice }) {
           <h2 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4rem', fontWeight: 700 }}>
             Master Ledger History
           </h2>
-          <p style={{ fontSize: '0.875rem', color: '#64748B' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>
             Complete immutable audit log of all transactions recorded in your shop.
           </p>
         </div>
@@ -75,7 +75,7 @@ export default function TransactionsView({ currentLang, onOpenVoice }) {
                   key={type}
                   className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setFilterType(type)}
-                  style={{ borderRadius: 9999 }}
+                  style={{ borderRadius: 'var(--radius-full)' }}
                 >
                   {labels[type]}
                 </button>

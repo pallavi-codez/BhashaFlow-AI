@@ -61,7 +61,7 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseCreated }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#EF4444'
+              color: '#D94B4B'
             }}>
               <CreditCard size={18} />
             </div>

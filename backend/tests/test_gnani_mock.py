@@ -2,9 +2,22 @@
 Tests for Gnani STT and TTS integration using httpx mocks.
 External APIs are mocked — the production app uses real API calls.
 """
+import os
 import pytest
 import pytest_asyncio
 from decimal import Decimal
+
+
+@pytest.fixture(autouse=True)
+def reset_gnani_key():
+    """
+    Ensure GNANI_API_KEY env var and the lru_cached Settings are reset after
+    each test so tests cannot bleed their key into each other.
+    """
+    yield
+    os.environ.pop("GNANI_API_KEY", None)
+    from backend.config import get_settings
+    get_settings.cache_clear()
 
 
 # ── STT tests ────────────────────────────────────────────────────────────────
@@ -26,7 +39,16 @@ class TestGnaniSTT:
         from backend.config import get_settings
         get_settings.cache_clear()
 
-        audio_bytes = b"\x52\x49\x46\x46" + b"\x00" * 40  # minimal fake WAV
+        # Must exceed _MIN_AUDIO_BYTES (2000 bytes) in gnani_stt.py
+        import struct
+        num_samples = 2000  # 0.125s @ 16 kHz mono 16-bit
+        data_size = num_samples * 2
+        wav_header = struct.pack(
+            '<4sI4s4sIHHIIHH4sI',
+            b'RIFF', 36 + data_size, b'WAVE', b'fmt ', 16,
+            1, 1, 16000, 32000, 2, 16, b'data', data_size,
+        )
+        audio_bytes = wav_header + b'\x00' * data_size
         response = auth_client.post(
             "/api/stt/transcribe",
             files={"audio_file": ("recording.wav", audio_bytes, "audio/wav")},
@@ -93,18 +115,17 @@ class TestGnaniSTT:
 
     def test_stt_no_key_returns_error(self, auth_client, respx_mock):
         """Without GNANI_API_KEY, must return error not fake transcript."""
-        import os
-        os.environ.pop("GNANI_API_KEY", None)
-        # Reset settings cache
+        from unittest.mock import patch
         from backend.config import get_settings
-        get_settings.cache_clear()
-        # env var removed → key="", service should raise
-        audio_bytes = b"\x52\x49\x46\x46" + b"\x00" * 40
-        response = auth_client.post(
-            "/api/stt/transcribe",
-            files={"audio_file": ("recording.wav", audio_bytes, "audio/wav")},
-            data={"language_code": "kn-IN"},
-        )
+
+        settings = get_settings()
+        with patch.object(settings, "gnani_api_key", ""):
+            audio_bytes = b"\x52\x49\x46\x46" + b"\x00" * 40
+            response = auth_client.post(
+                "/api/stt/transcribe",
+                files={"audio_file": ("recording.wav", audio_bytes, "audio/wav")},
+                data={"language_code": "kn-IN"},
+            )
         assert response.status_code == 422
         assert response.json()["success"] is False
         assert response.json()["transcript"] is None

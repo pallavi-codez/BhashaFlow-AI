@@ -2,9 +2,12 @@
 Application configuration — reads from environment / .env file.
 Secrets are NEVER exposed to the frontend.
 """
-import os
 from functools import lru_cache
+from pathlib import Path
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -12,7 +15,18 @@ class Settings(BaseSettings):
     gnani_api_key: str = ""
 
     # ── Database ──────────────────────────────────────────────────────────────
-    database_url: str = "sqlite:///./bhashaflow.db"
+    database_url: str = f"sqlite:///{(PROJECT_ROOT / 'bhashaflow.db').as_posix()}"
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def resolve_sqlite_path(cls, v: str) -> str:
+        if v.startswith("sqlite:///") and not v.startswith("sqlite:///:memory:"):
+            rel_part = v[len("sqlite:///"):]
+            p = Path(rel_part)
+            if not p.is_absolute():
+                abs_p = (PROJECT_ROOT / p).resolve()
+                return f"sqlite:///{abs_p.as_posix()}"
+        return v
 
     # ── App ───────────────────────────────────────────────────────────────────
     secret_key: str = "change-me-in-production"
@@ -27,7 +41,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Use an absolute path so this works regardless of the working directory
+        # from which uvicorn / pytest is launched.
+        env_file=str(Path(__file__).resolve().parent / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

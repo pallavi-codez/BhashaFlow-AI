@@ -84,15 +84,15 @@ export default function CustomersView({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 380px) 1fr', gap: 24 }}>
         {/* Customer List */}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', background: '#F8FAFC' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', background: '#F8FAF8' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--muted-text)', textTransform: 'uppercase' }}>
               Customers ({customers.length})
             </span>
           </div>
 
           <div style={{ maxHeight: '680px', overflowY: 'auto' }}>
             {customers.length === 0 ? (
-              <div style={{ padding: 32, textAlign: 'center', color: '#64748B' }}>
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted-text)' }}>
                 <Users size={32} color="#CBD5E1" style={{ margin: '0 auto 8px' }} />
                 <div>No customers found.</div>
               </div>
@@ -107,10 +107,10 @@ export default function CustomersView({
                     onClick={() => selectCustomer(c)}
                     style={{
                       padding: '16px 20px',
-                      borderBottom: '1px solid var(--border-light)',
+                      borderBottom: '1px solid var(--border-color)',
                       cursor: 'pointer',
-                      background: isSelected ? '#EFF6FF' : 'transparent',
-                      borderLeft: isSelected ? '4px solid #1E6FCC' : '4px solid transparent',
+                      background: isSelected ? 'var(--mint)' : 'transparent',
+                      borderLeft: isSelected ? '4px solid var(--emerald-primary)' : '4px solid transparent',
                       transition: 'all 0.15s ease',
                       display: 'flex',
                       alignItems: 'center',
@@ -118,10 +118,10 @@ export default function CustomersView({
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.95rem' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--charcoal-text)', fontSize: '0.95rem' }}>
                         {c.name}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                         {c.phone ? <span>{c.phone}</span> : <span>No phone recorded</span>}
                       </div>
                     </div>
@@ -130,11 +130,11 @@ export default function CustomersView({
                       <div style={{
                         fontSize: '0.95rem',
                         fontWeight: 700,
-                        color: balance > 0 ? '#F59E0B' : '#10B981'
+                        color: balance > 0 ? '#B45309' : 'var(--emerald-primary)'
                       }}>
                         ₹{balance.toFixed(2)}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--muted-text)' }}>
                         {balance > 0 ? 'Due Udhar' : 'Cleared'}
                       </div>
                     </div>
@@ -154,7 +154,7 @@ export default function CustomersView({
                   <h3 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4rem', fontWeight: 700 }}>
                     {selectedCustomer.name}
                   </h3>
-                  <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: '0.85rem', color: '#64748B' }}>
+                  <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: '0.85rem', color: 'var(--muted-text)' }}>
                     {selectedCustomer.phone && <span>📞 {selectedCustomer.phone}</span>}
                     <span>🗓️ Customer since {new Date(selectedCustomer.created_at).toLocaleDateString()}</span>
                   </div>
@@ -162,18 +162,18 @@ export default function CustomersView({
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>CURRENT BALANCE</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-text)' }}>CURRENT BALANCE</div>
                     <div style={{
                       fontSize: '1.75rem',
-                      fontWeight: 700,
-                      color: Number(selectedCustomer.outstanding_balance) > 0 ? '#F59E0B' : '#10B981'
+                      fontWeight: 800,
+                      color: Number(selectedCustomer.outstanding_balance) > 0 ? '#B45309' : 'var(--emerald-primary)'
                     }}>
                       ₹{selectedCustomer.outstanding_balance}
                     </div>
                   </div>
 
                   <button
-                    className="btn btn-success"
+                    className="btn btn-primary"
                     onClick={() => onOpenPaymentModal(selectedCustomer)}
                   >
                     <CheckCircle size={16} /> Record Payment

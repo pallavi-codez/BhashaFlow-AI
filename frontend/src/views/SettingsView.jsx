@@ -38,12 +38,12 @@ export default function SettingsView({ currentLang, setCurrentLang, languages, s
       <div className="card">
         <div className="card-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EBF3FC', color: '#1E6FCC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--mint)', color: 'var(--emerald-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Globe size={20} />
             </div>
             <div>
               <h3 className="card-title">Multilingual Language Selection</h3>
-              <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted-text)' }}>
                 Select active interface and speech-recognition language ({languages.length} Indian languages supported)
               </div>
             </div>
@@ -58,8 +58,8 @@ export default function SettingsView({ currentLang, setCurrentLang, languages, s
                 key={lang.code}
                 onClick={() => setCurrentLang(lang.code)}
                 style={{
-                  border: isSelected ? '2px solid #1E6FCC' : '1px solid var(--border)',
-                  background: isSelected ? '#EFF6FF' : 'var(--bg-surface)',
+                  border: isSelected ? '2px solid var(--emerald-primary)' : '1px solid var(--border-color)',
+                  background: isSelected ? 'var(--mint)' : 'var(--white)',
                   borderRadius: 12,
                   padding: 16,
                   cursor: 'pointer',
@@ -70,13 +70,13 @@ export default function SettingsView({ currentLang, setCurrentLang, languages, s
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0F172A' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--charcoal-text)' }}>
                     {lang.name}
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#1E6FCC', fontWeight: 600, marginTop: 2 }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--emerald-primary)', fontWeight: 600, marginTop: 2 }}>
                     {lang.native_name}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: 4 }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginTop: 4 }}>
                     Voice: {lang.default_voice} &bull; {lang.text_direction === 'rtl' ? 'RTL Layout' : 'LTR'}
                   </div>
                 </div>
@@ -86,7 +86,7 @@ export default function SettingsView({ currentLang, setCurrentLang, languages, s
                     width: 24,
                     height: 24,
                     borderRadius: '50%',
-                    background: '#1E6FCC',
+                    background: 'var(--emerald-primary)',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
@@ -103,68 +103,7 @@ export default function SettingsView({ currentLang, setCurrentLang, languages, s
         </div>
       </div>
 
-      {/* ── Gnani AI Architecture & Secrets Guide ─────────────────────────── */}
-      <div className="card">
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#F0FDF4', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Cpu size={20} />
-            </div>
-            <div>
-              <h3 className="card-title">Gnani AI Integration Status</h3>
-              <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
-                Prisma Speech-to-Text &amp; Timbre Text-to-Speech Architecture
-              </div>
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className={`badge ${healthStatus === 'connected' ? 'badge-payment' : 'badge-credit'}`}>
-              Backend API: {healthStatus === 'connected' ? '● Online' : 'Checking…'}
-            </span>
-            <button className="btn btn-secondary btn-sm" onClick={checkHealth} title="Check connection">
-              <RefreshCw size={14} />
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {/* STT Status */}
-          <div style={{ padding: 18, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Mic size={18} color="#1E6FCC" />
-              <div style={{ fontWeight: 700, color: '#0F172A' }}>Gnani Prisma (STT)</div>
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: 1.5 }}>
-              Endpoint: <code>POST https://api.vachana.ai/stt/v3</code><br />
-              Format: <code>multipart/form-data</code> with ITN native numerals.<br />
-              Auth: <code>X-API-Key-ID</code> (Protected Server-Side)
-            </div>
-          </div>
-
-          {/* TTS Status */}
-          <div style={{ padding: 18, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Volume2 size={18} color="#10B981" />
-              <div style={{ fontWeight: 700, color: '#0F172A' }}>Gnani Timbre (TTS)</div>
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: 1.5 }}>
-              Endpoint: <code>POST https://api.vachana.ai/api/v1/tts/inference</code><br />
-              Model: <code>timbre-v2.5</code> (Voices: Kaveri, Nalini, Deepak)<br />
-              Output: Streamed browser-playable WAV PCM audio.
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 20, padding: '16px', background: '#F8FAFC', borderRadius: 12, border: '1px dashed #CBD5E1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.9rem', color: '#0F172A', marginBottom: 6 }}>
-            <Key size={16} color="#F59E0B" /> Secret Configuration Guide
-          </div>
-          <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.6 }}>
-            To supply your live Gnani API key: set <code>GNANI_API_KEY=&lt;your_key&gt;</code> in <code>backend/.env</code> or as a system environment variable. The backend reads it securely on the server side and never exposes secrets to the browser bundle or client requests.
-          </p>
-        </div>
-      </div>
 
       {/* ── Shop Info Card ────────────────────────────────────────────────── */}
       <div className="card">

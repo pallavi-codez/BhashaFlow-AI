@@ -168,7 +168,9 @@ SUPPORTED_LANGUAGES: Dict[str, LanguageConfig] = {
         code="or-IN",
         name="Odia",
         native_name="ଓଡ଼ିଆ",
-        stt_supported=True,
+        # Gnani Prisma does NOT support or-IN — recorded audio will be rejected.
+        # Users in this language should use indic-auto or a supported language.
+        stt_supported=False,
         tts_supported=True,
         default_voice="Nalini",
         voices=["Nalini"],
@@ -196,7 +198,9 @@ SUPPORTED_LANGUAGES: Dict[str, LanguageConfig] = {
         code="ur-IN",
         name="Urdu",
         native_name="اردو",
-        stt_supported=True,
+        # Gnani Prisma does NOT support ur-IN (Urdu). Sending ur-IN returns a 400
+        # INVALID_LANGUAGE_CODE error. STT is disabled; users must type manually.
+        stt_supported=False,
         tts_supported=True,
         default_voice="Nalini",
         voices=["Nalini"],

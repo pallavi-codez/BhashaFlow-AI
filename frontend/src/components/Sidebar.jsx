@@ -5,7 +5,7 @@ import {
   Users, 
   Receipt, 
   CreditCard, 
-  BarChart3, 
+  HelpCircle, 
   Settings, 
   LogOut,
   Sparkles
@@ -16,24 +16,24 @@ export default function Sidebar({ currentView, setCurrentView, currentLang, shop
   const t = (k) => getTranslation(currentLang, k);
 
   const navItems = [
-    { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
-    { id: 'voice', label: t('voiceEntry'), icon: Mic, highlight: true },
-    { id: 'customers', label: t('customers'), icon: Users },
-    { id: 'transactions', label: t('transactions'), icon: Receipt },
-    { id: 'expenses', label: t('expenses'), icon: CreditCard },
-    { id: 'reports', label: t('reports'), icon: BarChart3 },
-    { id: 'settings', label: t('settings'), icon: Settings },
+    { id: 'dashboard', label: currentLang === 'en-IN' ? 'Overview' : t('dashboard'), icon: LayoutDashboard },
+    { id: 'voice', label: currentLang === 'en-IN' ? 'Voice Transactions' : t('voiceEntry'), icon: Mic, highlight: true },
+    { id: 'ask-ledger', label: currentLang === 'en-IN' ? 'Ask Your Ledger' : t('askLedger'), icon: HelpCircle },
+    { id: 'customers', label: currentLang === 'en-IN' ? 'Customers' : t('customers'), icon: Users },
+    { id: 'transactions', label: currentLang === 'en-IN' ? 'Transaction History' : t('transactions'), icon: Receipt },
+    { id: 'expenses', label: currentLang === 'en-IN' ? 'Expenses' : t('expenses'), icon: CreditCard },
+    { id: 'settings', label: currentLang === 'en-IN' ? 'Settings' : t('settings'), icon: Settings },
   ];
 
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
         <div className="brand-icon">
-          <Sparkles size={22} />
+          <Sparkles size={20} color="#FFFFFF" />
         </div>
         <div>
           <div className="brand-title">BhashaFlow</div>
-          <div style={{ fontSize: '0.7rem', color: '#38BDF8', fontWeight: 600 }}>GNANI AI POWERED</div>
+          <div style={{ fontSize: '0.68rem', color: '#DDF4E6', fontWeight: 700, letterSpacing: '0.04em' }}>GNANI AI POWERED</div>
         </div>
         {shop?.is_demo && <span className="brand-badge">DEMO</span>}
       </div>
@@ -55,21 +55,25 @@ export default function Sidebar({ currentView, setCurrentView, currentLang, shop
               className={`nav-link ${isActive ? 'active' : ''}`}
               style={{
                 width: '100%',
-                background: 'none',
+                background: isActive ? '#16865A' : 'none',
                 textAlign: 'left',
                 border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                cursor: 'pointer',
               }}
             >
-              <Icon size={19} color={isActive ? '#FFFFFF' : item.highlight ? '#38BDF8' : '#94A3B8'} />
+              <Icon size={18} color={isActive ? '#FFFFFF' : item.highlight ? '#E9B949' : 'rgba(255, 255, 255, 0.7)'} />
               <span>{item.label}</span>
               {item.highlight && !isActive && (
                 <span style={{
                   marginLeft: 'auto',
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   borderRadius: '50%',
-                  background: '#38BDF8',
-                  boxShadow: '0 0 8px #38BDF8'
+                  background: '#E9B949',
+                  boxShadow: '0 0 6px #E9B949'
                 }} />
               )}
             </button>
@@ -93,13 +97,13 @@ export default function Sidebar({ currentView, setCurrentView, currentLang, shop
           className="btn btn-secondary btn-sm"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            color: '#EF4444',
-            borderColor: 'rgba(239, 68, 68, 0.2)',
+            color: '#F87171',
+            borderColor: 'rgba(248, 113, 113, 0.2)',
             width: '100%',
             justifyContent: 'center',
           }}
         >
-          <LogOut size={15} />
+          <LogOut size={14} />
           <span>{t('logout')}</span>
         </button>
       </div>

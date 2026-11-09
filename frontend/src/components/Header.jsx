@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Globe, Mic, ChevronDown, Check } from 'lucide-react';
 import { getTranslation } from '../i18n/translations';
 
-export default function Header({ currentView, currentLang, setCurrentLang, languages, onOpenVoice }) {
+export default function Header({ currentView, currentLang, setCurrentLang, languages, onOpenVoice, shop }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -10,17 +10,17 @@ export default function Header({ currentView, currentLang, setCurrentLang, langu
 
   const viewTitles = {
     dashboard: t('dashboard'),
+    'ask-ledger': t('askLedger'),
     customers: t('customers'),
     transactions: t('transactions'),
     expenses: t('expenses'),
-    reports: t('reports'),
     settings: t('settings'),
   };
 
   const activeLangConfig = languages.find((l) => l.code === currentLang) || {
-    name: 'Kannada',
-    native_name: 'ಕನ್ನಡ',
-    code: 'kn-IN',
+    name: 'English',
+    native_name: 'English (India)',
+    code: 'en-IN',
   };
 
   useEffect(() => {
@@ -35,8 +35,14 @@ export default function Header({ currentView, currentLang, setCurrentLang, langu
 
   return (
     <header className="topbar">
-      <div className="topbar-left">
+      <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <h1 className="topbar-title">{viewTitles[currentView] || 'BhashaFlow AI'}</h1>
+        {shop?.is_demo && (
+          <span className="demo-indicator-badge" title="You are viewing synthetic demo kirana data">
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D97706', display: 'inline-block' }} />
+            Demo Store
+          </span>
+        )}
       </div>
 
       <div className="topbar-right">
@@ -47,14 +53,14 @@ export default function Header({ currentView, currentLang, setCurrentLang, langu
             onClick={() => setDropdownOpen(!dropdownOpen)}
             title="Switch Language"
           >
-            <Globe size={16} color="#1E6FCC" />
+            <Globe size={16} color="var(--primary)" />
             <span>{activeLangConfig.native_name} ({activeLangConfig.name})</span>
             <ChevronDown size={14} />
           </button>
 
           {dropdownOpen && (
             <div className="lang-menu">
-              <div style={{ padding: '6px 8px', fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>
+              <div style={{ padding: '6px 8px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                 SELECT INDIAN LANGUAGE
               </div>
               {languages.map((lang) => {
@@ -72,7 +78,7 @@ export default function Header({ currentView, currentLang, setCurrentLang, langu
                       <div style={{ fontWeight: isSelected ? 600 : 500 }}>{lang.name}</div>
                       <div className="lang-native-badge">{lang.native_name}</div>
                     </div>
-                    {isSelected && <Check size={16} color="#1E6FCC" />}
+                    {isSelected && <Check size={16} color="var(--primary)" />}
                   </div>
                 );
               })}
@@ -85,8 +91,8 @@ export default function Header({ currentView, currentLang, setCurrentLang, langu
           className="btn btn-primary btn-sm"
           onClick={onOpenVoice}
           style={{
-            borderRadius: '9999px',
-            boxShadow: '0 4px 12px rgba(30, 111, 204, 0.3)',
+            borderRadius: 'var(--radius-full)',
+            boxShadow: '0 4px 12px rgba(22, 134, 90, 0.25)',
           }}
         >
           <Mic size={16} />

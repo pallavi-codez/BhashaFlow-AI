@@ -10,16 +10,36 @@ import DashboardView from './views/DashboardView';
 import CustomersView from './views/CustomersView';
 import TransactionsView from './views/TransactionsView';
 import ExpensesView from './views/ExpensesView';
-import ReportsView from './views/ReportsView';
+import AskLedgerView from './views/AskLedgerView';
 import SettingsView from './views/SettingsView';
 import AuthView from './views/AuthView';
+import LandingView from './views/LandingView';
 import { api } from './services/api';
+
+function getInitialLanguage() {
+  try {
+    // 1. Authenticated account preference
+    const savedShop = localStorage.getItem('bhashaflow_shop');
+    if (savedShop) {
+      const parsed = JSON.parse(savedShop);
+      if (parsed?.language) return parsed.language;
+    }
+    // 2. Locally saved guest preference
+    const guestLang = localStorage.getItem('bhashaflow_guest_lang');
+    if (guestLang) return guestLang;
+  } catch (e) {
+    console.warn('Failed to read stored language preference:', e);
+  }
+  // 3. Strict first-visit default: English (en-IN), never inferred from browser/IP
+  return 'en-IN';
+}
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [guestView, setGuestView] = useState('landing'); // 'landing' | 'login' | 'register'
   const [shop, setShop] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
-  const [currentLang, setCurrentLang] = useState('kn-IN');
+  const [currentLang, setCurrentLang] = useState(getInitialLanguage);
   const [languages, setLanguages] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -32,15 +52,34 @@ export default function App() {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
 
   useEffect(() => {
-    // Check existing auth session
-    const savedShop = api.getSavedShop();
-    const token = localStorage.getItem('bhashaflow_token');
-    if (savedShop && token) {
-      setShop(savedShop);
-      setIsAuthenticated(true);
+    async function restoreSession() {
+      const token = localStorage.getItem('bhashaflow_token');
+      if (token) {
+        try {
+          const profile = await api.getMe();
+          const guestLang = localStorage.getItem('bhashaflow_guest_lang');
+          const resolvedLang = profile.language || guestLang || 'en-IN';
+          setShop({
+            id: profile.id,
+            name: profile.name,
+            owner_name: profile.owner_name,
+            phone: profile.phone,
+            is_demo: !!profile.is_demo,
+            language: resolvedLang,
+          });
+          setCurrentLang(resolvedLang);
+          setIsAuthenticated(true);
+        } catch (err) {
+          console.warn('Session verification failed, logging out:', err.message);
+          api.logout();
+          setIsAuthenticated(false);
+          setShop(null);
+        }
+      }
+      loadLanguages();
     }
 
-    loadLanguages();
+    restoreSession();
   }, []);
 
   useEffect(() => {
@@ -85,12 +124,46 @@ export default function App() {
   }
 
   function handleAuthSuccess(authResult) {
+    const guestLang = localStorage.getItem('bhashaflow_guest_lang');
+    const resolvedLang = authResult.language || guestLang || 'en-IN';
     setShop({
       id: authResult.shop_id,
       name: authResult.shop_name,
-      is_demo: authResult.shop_name.includes('Demo'),
+      is_demo: !!authResult.is_demo,
+      language: resolvedLang,
     });
+    setCurrentLang(resolvedLang);
     setIsAuthenticated(true);
+  }
+
+  async function handleLanguageChange(newLang) {
+    if (!newLang) return;
+    // 1. Immediate UI update across all components
+    setCurrentLang(newLang);
+    // 2. Persist locally for returning visits / guests
+    try {
+      localStorage.setItem('bhashaflow_guest_lang', newLang);
+    } catch (e) {
+      console.warn('Failed to store guest language preference:', e);
+    }
+    // 3. For authenticated customers, persist to backend shop profile
+    if (isAuthenticated || localStorage.getItem('bhashaflow_token')) {
+      try {
+        await api.updateLanguage(newLang);
+        setShop((prev) => (prev ? { ...prev, language: newLang } : null));
+      } catch (err) {
+        console.warn('Failed to persist language to backend:', err.message);
+      }
+    }
+  }
+
+  async function handleDemoLogin() {
+    try {
+      const data = await api.demoLogin();
+      handleAuthSuccess(data);
+    } catch (err) {
+      console.error('Demo store initialization failed:', err);
+    }
   }
 
   function handleLogout() {
@@ -98,6 +171,7 @@ export default function App() {
     setIsAuthenticated(false);
     setShop(null);
     setCurrentView('dashboard');
+    setGuestView('landing');
   }
 
   function handleOpenPaymentModal(cust) {
@@ -110,12 +184,27 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
+    if (guestView === 'landing') {
+      return (
+        <LandingView
+          onGetStarted={() => setGuestView('register')}
+          onSignIn={() => setGuestView('login')}
+          onDemoLogin={handleDemoLogin}
+          languages={languages}
+          currentLang={currentLang}
+          onLanguageChange={handleLanguageChange}
+        />
+      );
+    }
+
     return (
       <AuthView
+        initialMode={guestView}
+        onBackToHome={() => setGuestView('landing')}
         onAuthSuccess={handleAuthSuccess}
         languages={languages}
         selectedLang={currentLang}
-        setSelectedLang={setCurrentLang}
+        setSelectedLang={handleLanguageChange}
       />
     );
   }
@@ -137,9 +226,10 @@ export default function App() {
         <Header
           currentView={currentView}
           currentLang={currentLang}
-          setCurrentLang={setCurrentLang}
+          setCurrentLang={handleLanguageChange}
           languages={languages}
           onOpenVoice={() => setVoiceModalOpen(true)}
+          shop={shop}
         />
 
         {/* Dynamic Page Views */}
@@ -154,6 +244,7 @@ export default function App() {
               onOpenCustomerModal={() => setCustomerModalOpen(true)}
               onOpenExpenseModal={() => setExpenseModalOpen(true)}
               setCurrentView={setCurrentView}
+              shop={shop}
             />
           )}
 
@@ -178,14 +269,14 @@ export default function App() {
             />
           )}
 
-          {currentView === 'reports' && (
-            <ReportsView stats={dashboardStats} />
+          {currentView === 'ask-ledger' && (
+            <AskLedgerView currentLang={currentLang} languages={languages} />
           )}
 
           {currentView === 'settings' && (
             <SettingsView
               currentLang={currentLang}
-              setCurrentLang={setCurrentLang}
+              setCurrentLang={handleLanguageChange}
               languages={languages}
               shop={shop}
             />

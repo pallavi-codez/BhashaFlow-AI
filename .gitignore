@@ -30,6 +30,8 @@ wheels/
 # Databases
 *.db
 *.sqlite3
+*.db-*
+*.backup*
 
 # Node / Frontend
 node_modules/
@@ -44,3 +46,14 @@ dist-ssr/
 *.swo
 Thumbs.db
 .DS_Store
+
+# Database backups and sensitive files
+*.bak
+*.backup*
+*.db-*
+*.sqlite*
+*.log
+
+# Virtual environments
+.venv/
+venv/

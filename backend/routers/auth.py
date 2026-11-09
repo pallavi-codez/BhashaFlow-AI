@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .. import crud
-from ..auth import create_access_token
+from ..auth import create_access_token, get_current_shop
 from ..database import get_db
-from ..schemas import ShopLoginRequest, ShopRegisterRequest, TokenResponse
+from ..models import Shop
+from ..schemas import ShopLanguageUpdateRequest, ShopLoginRequest, ShopOut, ShopRegisterRequest, TokenResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -24,7 +25,13 @@ def register(data: ShopRegisterRequest, db: Session = Depends(get_db)):
         language=data.language,
     )
     token = create_access_token(shop.id)
-    return TokenResponse(access_token=token, shop_id=shop.id, shop_name=shop.name)
+    return TokenResponse(
+        access_token=token,
+        shop_id=shop.id,
+        shop_name=shop.name,
+        is_demo=shop.is_demo,
+        language=shop.language,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -33,7 +40,13 @@ def login(data: ShopLoginRequest, db: Session = Depends(get_db)):
     if not shop or not crud.verify_password(data.password, shop.password_hash):
         raise HTTPException(status_code=401, detail="Invalid phone or password.")
     token = create_access_token(shop.id)
-    return TokenResponse(access_token=token, shop_id=shop.id, shop_name=shop.name)
+    return TokenResponse(
+        access_token=token,
+        shop_id=shop.id,
+        shop_name=shop.name,
+        is_demo=shop.is_demo,
+        language=shop.language,
+    )
 
 
 @router.post("/demo", response_model=TokenResponse)
@@ -47,12 +60,41 @@ def demo_login(db: Session = Depends(get_db)):
             owner_name="Demo Shopkeeper",
             phone="+910000000000",
             password_plain="demo1234",
-            language="kn-IN",
+            language="en-IN",
             is_demo=True,
         )
         _seed_demo(db, shop.id)
     token = create_access_token(shop.id)
-    return TokenResponse(access_token=token, shop_id=shop.id, shop_name=shop.name)
+    return TokenResponse(
+        access_token=token,
+        shop_id=shop.id,
+        shop_name=shop.name,
+        is_demo=True,
+        language=shop.language,
+    )
+
+
+@router.get("/me", response_model=ShopOut)
+def get_me(shop: Shop = Depends(get_current_shop)):
+    """Return authenticated shop profile for session restoration and validation."""
+    return shop
+
+
+@router.patch("/language", response_model=ShopOut)
+@router.put("/language", response_model=ShopOut)
+def update_language(
+    data: ShopLanguageUpdateRequest,
+    db: Session = Depends(get_db),
+    shop: Shop = Depends(get_current_shop),
+):
+    """
+    Persist language preference for the authenticated shop.
+    Loads on later visits or when logging in from another device.
+    """
+    updated = crud.update_shop_language(db, shop.id, data.language)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    return updated
 
 
 def _seed_demo(db: Session, shop_id: int) -> None:

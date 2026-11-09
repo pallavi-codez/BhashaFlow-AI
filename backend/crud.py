@@ -50,7 +50,7 @@ def create_shop(
     owner_name: str,
     phone: str,
     password_plain: str,
-    language: str = "kn-IN",
+    language: str = "en-IN",
     is_demo: bool = False,
 ) -> Shop:
     shop = Shop(
@@ -62,6 +62,16 @@ def create_shop(
         is_demo=is_demo,
     )
     db.add(shop)
+    db.commit()
+    db.refresh(shop)
+    return shop
+
+
+def update_shop_language(db: Session, shop_id: int, language: str) -> Optional[Shop]:
+    shop = get_shop_by_id(db, shop_id)
+    if not shop:
+        return None
+    shop.language = language
     db.commit()
     db.refresh(shop)
     return shop
@@ -165,6 +175,9 @@ def get_transaction_by_idempotency_key(db: Session, key: str) -> Optional[Transa
     return db.scalars(select(Transaction).where(Transaction.idempotency_key == key)).first()
 
 
+import json
+
+
 def create_transaction(db: Session, shop_id: int, data: TransactionCreate) -> Transaction:
     """
     Creates an UNCONFIRMED transaction.
@@ -177,6 +190,10 @@ def create_transaction(db: Session, shop_id: int, data: TransactionCreate) -> Tr
         if existing:
             return existing
 
+    items_data_str = None
+    if data.items:
+        items_data_str = json.dumps([it.model_dump(mode="json") for it in data.items])
+
     txn = Transaction(
         shop_id=shop_id,
         customer_id=data.customer_id,
@@ -185,6 +202,7 @@ def create_transaction(db: Session, shop_id: int, data: TransactionCreate) -> Tr
         note=data.note,
         source=data.source,
         transcript=data.transcript,
+        items_data=items_data_str,
         idempotency_key=data.idempotency_key,
         confirmed=False,
     )
@@ -359,3 +377,48 @@ def delete_expense(db: Session, shop_id: int, expense_id: int) -> bool:
     db.delete(expense)
     db.commit()
     return True
+
+
+# ── Price List CRUD ───────────────────────────────────────────────────────────
+
+def get_price_list_items(db: Session, shop_id: int) -> list:
+    from .models import PriceListItem
+    return list(db.scalars(
+        select(PriceListItem).where(PriceListItem.shop_id == shop_id).order_by(PriceListItem.item_name)
+    ).all())
+
+
+def get_price_list_dict(db: Session, shop_id: int) -> dict[str, Decimal]:
+    items = get_price_list_items(db, shop_id)
+    return {item.item_name.lower(): item.unit_price for item in items}
+
+
+def create_or_update_price_list_item(
+    db: Session, shop_id: int, item_name: str, unit: str, unit_price: Decimal
+):
+    from .models import PriceListItem
+    clean_name = item_name.strip()
+    existing = db.scalars(
+        select(PriceListItem).where(
+            PriceListItem.shop_id == shop_id,
+            func.lower(PriceListItem.item_name) == clean_name.lower(),
+        )
+    ).first()
+    if existing:
+        existing.unit = unit
+        existing.unit_price = unit_price
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    new_item = PriceListItem(
+        shop_id=shop_id,
+        item_name=clean_name,
+        unit=unit,
+        unit_price=unit_price,
+    )
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
+

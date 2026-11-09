@@ -41,7 +41,7 @@ export default function ExpensesView({ onOpenExpenseModal }) {
           <h2 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4rem', fontWeight: 700 }}>
             Shop Expense Tracker
           </h2>
-          <p style={{ fontSize: '0.875rem', color: '#64748B' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>
             Record shop overheads, stock purchases, and operational outlays.
           </p>
         </div>
@@ -52,18 +52,18 @@ export default function ExpensesView({ onOpenExpenseModal }) {
       </div>
 
       {/* Summary Card */}
-      <div className="card" style={{ background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)', borderColor: '#FECACA' }}>
+      <div className="card" style={{ background: '#FFFBFB', borderColor: '#FECACA' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991B1B', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-red)', textTransform: 'uppercase' }}>
               TOTAL RECORDED EXPENSES
             </div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2rem', fontWeight: 800, color: '#DC2626', marginTop: 4 }}>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2rem', fontWeight: 800, color: 'var(--danger-red)', marginTop: 4 }}>
               ₹{totalExpenseAmount.toFixed(2)}
             </div>
           </div>
 
-          <div style={{ fontSize: '0.85rem', color: '#64748B', maxWidth: 440 }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--muted-text)', maxWidth: 440 }}>
             Expenses decrease net cash movement in your shop calculations. They are kept strictly separate from sales to ensure true financial integrity.
           </div>
         </div>

@@ -24,7 +24,15 @@ export const api = {
     }
     const result = await res.json();
     localStorage.setItem('bhashaflow_token', result.access_token);
-    localStorage.setItem('bhashaflow_shop', JSON.stringify({ id: result.shop_id, name: result.shop_name }));
+    localStorage.setItem(
+      'bhashaflow_shop',
+      JSON.stringify({
+        id: result.shop_id,
+        name: result.shop_name,
+        is_demo: !!result.is_demo,
+        language: result.language || 'en-IN',
+      })
+    );
     return result;
   },
 
@@ -40,7 +48,15 @@ export const api = {
     }
     const result = await res.json();
     localStorage.setItem('bhashaflow_token', result.access_token);
-    localStorage.setItem('bhashaflow_shop', JSON.stringify({ id: result.shop_id, name: result.shop_name }));
+    localStorage.setItem(
+      'bhashaflow_shop',
+      JSON.stringify({
+        id: result.shop_id,
+        name: result.shop_name,
+        is_demo: !!result.is_demo,
+        language: result.language || 'en-IN',
+      })
+    );
     return result;
   },
 
@@ -54,8 +70,39 @@ export const api = {
     }
     const result = await res.json();
     localStorage.setItem('bhashaflow_token', result.access_token);
-    localStorage.setItem('bhashaflow_shop', JSON.stringify({ id: result.shop_id, name: result.shop_name, is_demo: true }));
+    localStorage.setItem(
+      'bhashaflow_shop',
+      JSON.stringify({
+        id: result.shop_id,
+        name: result.shop_name,
+        is_demo: true,
+        language: result.language || 'en-IN',
+      })
+    );
     return result;
+  },
+
+  async getMe() {
+    const res = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeader() });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        this.logout();
+      }
+      throw new Error('Session expired or unauthorized');
+    }
+    const data = await res.json();
+    localStorage.setItem(
+      'bhashaflow_shop',
+      JSON.stringify({
+        id: data.id,
+        name: data.name,
+        owner_name: data.owner_name,
+        phone: data.phone,
+        is_demo: !!data.is_demo,
+        language: data.language || 'en-IN',
+      })
+    );
+    return data;
   },
 
   logout() {
@@ -129,6 +176,12 @@ export const api = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (err.detail && typeof err.detail === 'object' && err.detail.error === 'overpayment') {
+        const error = new Error(err.detail.message || 'Payment exceeds outstanding balance');
+        error.isOverpayment = true;
+        error.outstanding = err.detail.outstanding;
+        throw error;
+      }
       throw new Error(typeof err.detail === 'string' ? err.detail : (err.detail?.message || 'Transaction validation failed'));
     }
     return res.json();
@@ -187,7 +240,24 @@ export const api = {
   async transcribeAudio(audioBlob, languageCode = 'kn-IN') {
     const formData = new FormData();
     const mime = audioBlob.type || 'audio/webm';
-    const ext = mime.includes('wav') ? 'wav' : 'webm';
+
+    // Map MIME base type → file extension
+    const mimeToExt = {
+      'audio/ogg': 'ogg',
+      'audio/wav': 'wav',
+      'audio/wave': 'wav',
+      'audio/mp4': 'mp4',
+      'audio/mpeg': 'mp3',
+      'audio/mp3': 'mp3',
+      'audio/aac': 'aac',
+      'audio/flac': 'flac',
+      'audio/x-m4a': 'm4a',
+      'audio/m4a': 'm4a',
+      'audio/webm': 'webm',
+    };
+    const mimeBase = mime.split(';')[0].trim().toLowerCase();
+    const ext = mimeToExt[mimeBase] || 'webm';
+
     formData.append('audio_file', audioBlob, `recording.${ext}`);
     formData.append('language_code', languageCode);
 
@@ -197,11 +267,18 @@ export const api = {
       body: formData,
     });
 
+    // Always parse the JSON body — even on 422 errors the backend returns a
+    // structured { success, error, transcript } object with a user-friendly message.
+    const data = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || err.error || 'Speech transcription failed');
+      // 422: Gnani error (empty transcript, unsupported language, API failure, etc.)
+      // The backend error message is already user-friendly — surface it directly.
+      const errMsg = data.error || data.detail || 'Speech transcription failed';
+      throw new Error(errMsg);
     }
-    return res.json();
+
+    return data;
   },
 
   async parseTranscript(transcript, languageCode = 'kn-IN') {
@@ -239,5 +316,43 @@ export const api = {
 
     const audioBlob = await res.blob();
     return URL.createObjectURL(audioBlob);
+  },
+
+  // ── Ask Your Ledger ───────────────────────────────────────────────────────
+  async askLedger(query, languageCode = 'en-IN') {
+    const res = await fetch(`${API_BASE}/ledger/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ query, language_code: languageCode }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to process ledger question');
+    }
+
+    return res.json();
+  },
+
+  // ── Account Settings ──────────────────────────────────────────────────────
+  async updateLanguage(language) {
+    const res = await fetch(`${API_BASE}/auth/language`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ language }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update preferred language');
+    }
+
+    const data = await res.json();
+    const currentShop = this.getSavedShop() || {};
+    localStorage.setItem(
+      'bhashaflow_shop',
+      JSON.stringify({ ...currentShop, language: data.language })
+    );
+    return data;
   },
 };

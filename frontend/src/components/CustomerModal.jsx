@@ -44,11 +44,11 @@ export default function CustomerModal({ isOpen, onClose, onCustomerCreated }) {
               width: 36,
               height: 36,
               borderRadius: '50%',
-              background: '#EBF3FC',
+              background: 'var(--mint)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#1E6FCC'
+              color: 'var(--emerald-primary)'
             }}>
               <UserPlus size={18} />
             </div>

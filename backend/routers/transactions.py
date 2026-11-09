@@ -9,7 +9,8 @@ from .. import crud
 from ..auth import get_current_shop
 from ..database import get_db
 from ..models import Shop, TransactionType
-from ..schemas import TransactionConfirm, TransactionCreate, TransactionOut
+import json
+from ..schemas import ParsedItem, TransactionConfirm, TransactionCreate, TransactionOut
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -19,9 +20,18 @@ def _txn_to_out(txn, db: Session, shop_id: int) -> TransactionOut:
     if txn.customer_id:
         c = crud.get_customer(db, shop_id, txn.customer_id)
         customer_name = c.name if c else None
+
+    items = None
+    if getattr(txn, "items_data", None):
+        try:
+            items = [ParsedItem(**it) for it in json.loads(txn.items_data)]
+        except Exception:
+            items = None
+
     return TransactionOut(
         id=txn.id, shop_id=txn.shop_id, customer_id=txn.customer_id,
         customer_name=customer_name, txn_type=txn.txn_type, amount=txn.amount,
+        items=items,
         note=txn.note, source=txn.source, transcript=txn.transcript,
         confirmed=txn.confirmed, created_at=txn.created_at,
     )
@@ -44,10 +54,10 @@ def create_transaction(
         if not c:
             raise HTTPException(status_code=404, detail="Customer not found in this shop.")
 
-    # Validate: payment cannot exceed outstanding balance
+    # Validate: payment cannot exceed outstanding balance unless explicitly confirmed
     if data.txn_type == TransactionType.PAYMENT and data.customer_id:
         outstanding = crud.compute_customer_balance(db, shop.id, data.customer_id)
-        if data.amount > outstanding:
+        if data.amount > outstanding and not data.allow_overpayment:
             raise HTTPException(
                 status_code=422,
                 detail={

@@ -45,6 +45,18 @@ def get_db():
 
 
 def init_db():
-    """Create all tables (run once on startup)."""
+    """Create all tables (run once on startup) and migrate columns if necessary."""
     from . import models  # noqa: F401 — import to register models
     Base.metadata.create_all(bind=engine)
+    
+    # Safe migration for existing SQLite database
+    try:
+        with engine.connect() as conn:
+            tables = [r[0] for r in conn.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+            if "transactions" in tables:
+                cols = [r[1] for r in conn.exec_driver_sql("PRAGMA table_info(transactions)").fetchall()]
+                if "items_data" not in cols:
+                    conn.exec_driver_sql("ALTER TABLE transactions ADD COLUMN items_data TEXT")
+                    conn.commit()
+    except Exception:
+        pass

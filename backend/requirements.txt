@@ -18,6 +18,11 @@ passlib[bcrypt]==1.7.4
 # HTTP client (for Gnani API calls)
 httpx==0.27.2
 
+# Audio conversion: browser WebM/Opus → WAV (Gnani-compatible)
+# imageio-ffmpeg ships its own ffmpeg binary; no system install required.
+pydub>=0.25.1
+imageio-ffmpeg>=0.5.1
+
 # File upload
 python-multipart==0.0.9
 

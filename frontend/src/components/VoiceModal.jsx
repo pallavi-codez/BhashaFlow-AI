@@ -17,7 +17,7 @@ import { api } from '../services/api';
 import { getTranslation } from '../i18n/translations';
 import TtsPlayer from './TtsPlayer';
 
-export default function VoiceModal({ isOpen, onClose, currentLang, languages, onTransactionComplete }) {
+export default function VoiceModal({ isOpen, onClose, currentLang, languages = [], onTransactionComplete }) {
   const [stage, setStage] = useState('idle'); // idle | recording | transcribing | parsing | review | saving | success | error
   const [selectedLang, setSelectedLang] = useState(currentLang || 'kn-IN');
   const [transcript, setTranscript] = useState('');
@@ -87,16 +87,26 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
   // ── Microphone Recording ──────────────────────────────────────────────────
   async function startRecording() {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof window.MediaRecorder === 'undefined') {
+        setErrorMessage(
+          'Voice recording is not supported in this browser. Please use Chrome, Edge, or Firefox.'
+        );
+        setStage('error');
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
 
-      // Determine supported mime type
+      // Preference order — formats Gnani accepts natively come first to
+      // avoid server-side conversion. audio/mp4 (Edge/Chrome on Windows)
+      // is always converted on the server because Gnani rejects mp4.
       const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4',
-        'audio/wav'
+        'audio/ogg;codecs=opus',  // Firefox — Gnani-accepted natively
+        'audio/ogg',              // Gnani-accepted natively
+        'audio/webm;codecs=opus', // Chrome/Edge — server converts WebM→WAV
+        'audio/webm',             // server converts WebM→WAV
+        'audio/mp4',              // Safari/Edge fallback — server converts MP4→WAV
+        'audio/wav',              // Gnani-accepted, unlikely in MediaRecorder
       ];
       let selectedMime = '';
       for (const m of mimeTypes) {
@@ -120,6 +130,19 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
         const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         const localUrl = URL.createObjectURL(audioBlob);
         setAudioUrl(localUrl);
+
+        // Guard: reject recordings that are clearly too short to contain speech.
+        // A valid 1-second WebM/OGG recording is typically > 5 KB.
+        // Anything under 2 KB is almost certainly an empty or truncated capture.
+        if (audioBlob.size < 2000) {
+          setErrorMessage(
+            'Recording was too short — no audio was captured. ' +
+            'Please tap the microphone, speak your transaction clearly for at least 1–2 seconds, then tap Stop.'
+          );
+          setStage('error');
+          return;
+        }
+
         await processAudio(audioBlob);
       };
 
@@ -131,9 +154,15 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
       }, 1000);
     } catch (err) {
       console.error(err);
-      setErrorMessage(
-        'Could not access microphone. Please ensure microphone permissions are granted in your browser.'
-      );
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setErrorMessage(
+          'Microphone permission was denied. Please allow microphone access in your browser settings and try again.'
+        );
+      } else {
+        setErrorMessage(
+          'Could not access microphone. Please ensure microphone permissions are granted in your browser.'
+        );
+      }
       setStage('error');
     }
   }
@@ -152,12 +181,13 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
     try {
       const sttResult = await api.transcribeAudio(blob, selectedLang);
       if (!sttResult.success || !sttResult.transcript) {
-        throw new Error(sttResult.error || 'No speech detected.');
+        // sttResult.error is set by the backend for empty transcript / API failures
+        throw new Error(sttResult.error || 'No speech detected. Please try again.');
       }
       setTranscript(sttResult.transcript);
       await parseTranscriptText(sttResult.transcript);
     } catch (err) {
-      setErrorMessage(err.message || 'Speech recognition failed.');
+      setErrorMessage(err.message || 'Speech recognition failed. Please try again.');
       setStage('error');
     }
   }
@@ -229,6 +259,23 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
       // Generate idempotency key for duplicate submission prevention
       const idempotencyKey = `voice_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+      // Check for overpayment confirmation
+      let allowOverpayment = false;
+      if (parsedData.txn_type === 'PAYMENT' && existingCustomer) {
+        const debt = Number(existingCustomer.outstanding_balance || 0);
+        const amt = Number(parsedData.amount || 0);
+        if (amt > debt) {
+          const ok = window.confirm(
+            `Payment of ₹${amt.toFixed(2)} exceeds current outstanding balance of ₹${debt.toFixed(2)}. Record as overpayment?`
+          );
+          if (!ok) {
+            setStage('review');
+            return;
+          }
+          allowOverpayment = true;
+        }
+      }
+
       // 1. Create Pending Transaction
       const pendingTxn = await api.createPendingTransaction({
         customer_id: customerId,
@@ -238,6 +285,7 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
         source: 'voice',
         transcript: transcript,
         idempotency_key: idempotencyKey,
+        allow_overpayment: allowOverpayment,
       });
 
       // 2. Explicit User Confirmation
@@ -282,8 +330,10 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
 
   if (!isOpen) return null;
 
-  const currentLangConfig = languages.find((l) => l.code === selectedLang) || {
+  const currentLangConfig = (languages || []).find((l) => l.code === selectedLang) || {
+    code: selectedLang || 'kn-IN',
     name: 'Kannada',
+    stt_supported: true,
     sample_phrase: 'Ramesh ge 500 rupees udhar haaku',
   };
 
@@ -296,11 +346,11 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
               width: 36,
               height: 36,
               borderRadius: '50%',
-              background: '#EBF3FC',
+              background: 'var(--primary-light)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#1E6FCC'
+              color: 'var(--primary)'
             }}>
               <Mic size={20} />
             </div>
@@ -341,7 +391,21 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
             <button
               className={`mic-hero-button ${stage === 'recording' ? 'is-recording' : ''}`}
               onClick={stage === 'recording' ? stopRecording : startRecording}
-              title={stage === 'recording' ? 'Click to Stop' : 'Click to Speak'}
+              title={
+                currentLangConfig && currentLangConfig.stt_supported === false && stage !== 'recording'
+                  ? `Voice input not supported for ${currentLangConfig.name}`
+                  : stage === 'recording' ? 'Click to Stop' : 'Click to Speak'
+              }
+              disabled={
+                stage !== 'recording' &&
+                currentLangConfig &&
+                currentLangConfig.stt_supported === false
+              }
+              style={
+                currentLangConfig && currentLangConfig.stt_supported === false && stage !== 'recording'
+                  ? { opacity: 0.4, cursor: 'not-allowed' }
+                  : {}
+              }
             >
               {stage === 'recording' ? <Square size={36} /> : <Mic size={40} />}
             </button>
@@ -378,8 +442,25 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
                   Tap microphone to speak
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#64748B', maxWidth: 420, marginTop: 4 }}>
-                  Speak natural Kirana ledger commands like credit sales, debt payments, or cash.
+                  Speak clearly for at least 1–2 seconds in the selected language.
                 </div>
+
+                {/* Warning: STT not supported for this language */}
+                {currentLangConfig && currentLangConfig.stt_supported === false && (
+                  <div style={{
+                    marginTop: 10,
+                    padding: '8px 12px',
+                    background: '#FEF3C7',
+                    border: '1px solid #FCD34D',
+                    borderRadius: 8,
+                    fontSize: '0.8rem',
+                    color: '#92400E',
+                    maxWidth: 420,
+                    textAlign: 'left',
+                  }}>
+                    ⚠️ Voice input is not available for {currentLangConfig.name}. Please use the sample commands below (typed) or switch to Kannada, Hindi, or English.
+                  </div>
+                )}
 
                 {/* Sample Phrases for testing */}
                 <div style={{ marginTop: 24, textAlign: 'left', width: '100%' }}>
@@ -422,8 +503,8 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
               width: 54,
               height: 54,
               margin: '0 auto 16px',
-              border: '4px solid #E2E8F0',
-              borderTopColor: '#1E6FCC',
+              border: '4px solid var(--border)',
+              borderTopColor: 'var(--primary)',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite'
             }} />
@@ -448,7 +529,7 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
               padding: '12px 16px',
               marginBottom: 16
             }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E6FCC', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>
                 Gnani Prisma Transcript
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 600, color: '#0F172A', marginTop: 4 }}>
@@ -512,7 +593,7 @@ export default function VoiceModal({ isOpen, onClose, currentLang, languages, on
                       ✓ Existing Customer (Current Udhar: ₹{existingCustomer.outstanding_balance})
                     </div>
                   ) : parsedData.customer_name ? (
-                    <div style={{ fontSize: '0.75rem', color: '#1E6FCC', marginTop: 4 }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: 4 }}>
                       + New Customer will be created automatically
                     </div>
                   ) : null}
